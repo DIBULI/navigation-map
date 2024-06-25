@@ -10,7 +10,10 @@ mapMinX(mapMinX), mapMaxX(mapMaxX), mapMinY(mapMinY), mapMaxY(mapMaxY), mapMinZ(
   // assign the grids
   getGridIndex(mapMinX, mapMinY, mapMinZ, xIndexMin, yIndexMin, zIndexMin);
   getGridIndex(mapMaxX, mapMaxY, mapMaxZ, xIndexMax, yIndexMax, zIndexMax);
-  grids.resize((xIndexMax - xIndexMin + 1) * (yIndexMax - yIndexMin + 1) * (zIndexMax - zIndexMin + 1));
+  xMapLength = xIndexMax - xIndexMin + 1;
+  yMapLength = yIndexMax - yIndexMin + 1;
+  zMapLength = zIndexMax - zIndexMin + 1;
+  grids.resize(xMapLength * yMapLength * zMapLength);
 }
 
 OccupancyGridMap::~OccupancyGridMap() {}
@@ -84,4 +87,31 @@ void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, floa
 
     grids.push_back(std::make_tuple(x, y, z));
   }
+}
+
+void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector<std::tuple<float, float, float>> points) {
+  std::vector<std::tuple<int, int, int>> grids;
+  float x, y, z;
+  int gridX, gridY, gridZ;
+  Grid *grid;
+
+  for (auto &point : points) {
+    std::tie(x, y, z) = point;
+    gridTravel(xPos, yPos, zPos, x, y, z, grids);
+    
+    for (size_t i = 0; i < grids.size() - 1; i++) {
+      std::tie(gridX, gridY, gridZ) = grids[i];
+      grid = getGridByIndex(gridX, gridY, gridZ);
+      grid->miss();
+    }
+    std::tie(gridX, gridY, gridZ) = grids[grids.size() - 1];
+    grid = getGridByIndex(gridX, gridY, gridZ);
+    grid->hit();
+    
+    grids.clear();
+  }
+}
+
+Grid* OccupancyGridMap::getGridByIndex(int x, int y, int z) {
+  return &grids.at((xMapLength * yMapLength) * (z - zIndexMin) + xMapLength * (y - yIndexMin) + x);
 }
