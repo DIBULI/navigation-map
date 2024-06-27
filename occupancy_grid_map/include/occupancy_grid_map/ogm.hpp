@@ -23,7 +23,7 @@ public:
   // store the grid in order: x, y, z
   int xIndexMin, xIndexMax, yIndexMin, yIndexMax, zIndexMin, zIndexMax;
   unsigned int xMapLength, yMapLength, zMapLength; 
-  std::vector<Grid> grids;
+  std::vector<Grid> mapGrids;
 
   // OGM origin represented with map coordinates
   float originX;
@@ -31,6 +31,12 @@ public:
   float originZ;
 
   void getGridIndex(float x, float y, float z, int &xIndex, int &yIndex, int &zIndex);
+
+  void getGridIndex(unsigned int gridVectorIndex, int &x, int &y, int &z);
+
+  void gridIndexToPosition(int xIndex, int yIndex, int zIndex, float &x, float &y, float &z);
+
+  float getInitialTD(float start, float direction);
 
   void gridTravel(float xStart, float yStart, float zStart, float xDes, float yDes, float zDes, std::vector<std::tuple<int, int, int>> &grids);
 

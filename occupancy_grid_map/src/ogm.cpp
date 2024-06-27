@@ -7,13 +7,20 @@ float mapMinX, float mapMaxX, float mapMinY, float mapMaxY, float mapMinZ, float
 : originX(originX), originY(originY), originZ(originZ), gridSize(gridSize),
 mapMinX(mapMinX), mapMaxX(mapMaxX), mapMinY(mapMinY), mapMaxY(mapMaxY), mapMinZ(mapMinZ), mapMaxZ(mapMaxZ) 
 {
-  // assign the grids
-  getGridIndex(mapMinX, mapMinY, mapMinZ, xIndexMin, yIndexMin, zIndexMin);
-  getGridIndex(mapMaxX, mapMaxY, mapMaxZ, xIndexMax, yIndexMax, zIndexMax);
+  // assign the mapGrids
+  xIndexMin = floor((mapMinX - originX) / gridSize);
+  yIndexMin = floor((mapMinY - originY) / gridSize);
+  zIndexMin = floor((mapMinZ - originZ) / gridSize);
+
+  xIndexMax = floor((mapMaxX - originX) / gridSize);
+  yIndexMax = floor((mapMaxY - originY) / gridSize);
+  zIndexMax = floor((mapMaxZ - originZ) / gridSize);
+  
   xMapLength = xIndexMax - xIndexMin + 1;
   yMapLength = yIndexMax - yIndexMin + 1;
   zMapLength = zIndexMax - zIndexMin + 1;
-  grids.resize(xMapLength * yMapLength * zMapLength);
+
+  mapGrids.resize(xMapLength * yMapLength * zMapLength);
 }
 
 OccupancyGridMap::~OccupancyGridMap() {}
@@ -23,6 +30,26 @@ void OccupancyGridMap::getGridIndex(float x, float y, float z, int &xIndex, int 
   xIndex = floor((x - originX) / gridSize);
   yIndex = floor((y - originY) / gridSize);
   zIndex = floor((z - originZ) / gridSize);
+
+  xIndex = std::max(xIndexMin, std::min(xIndex, xIndexMax));
+  yIndex = std::max(yIndexMin, std::min(yIndex, yIndexMax));
+  zIndex = std::max(zIndexMin, std::min(zIndex, zIndexMax));
+}
+
+float OccupancyGridMap::getInitialTD(float start, float direction) {
+  if (direction >= 0) {
+    if (start >= 0) {
+      return fabs((gridSize - fmod(start, gridSize)) / direction);
+    } else {
+      return fabs((-fmod(start, gridSize)) / direction);
+    }
+  } else {
+    if (start >= 0) {
+      return fabs((fmod(start, gridSize)) / -direction);
+    } else {
+      return fabs((gridSize - fmod(-start, gridSize)) / -direction);
+    }
+  }
 }
 
 void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, float xDes, float yDes, float zDes, std::vector<std::tuple<int, int, int>> &grids) {
@@ -33,10 +60,6 @@ void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, floa
 
   float length = sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
   
-  directionX /= length;
-  directionY /= length;
-  directionZ /= length;
-
   int xStep, yStep, zStep;
   xStep = directionX > 0 ? 1 : -1;
   yStep = directionY > 0 ? 1 : -1;
@@ -54,9 +77,9 @@ void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, floa
 
   // initialize the travel distance
   float xTD, yTD, zTD;
-  xTD = fabs(std::fmod(xStart, gridSize)) / fabs(directionX);
-  yTD = fabs(std::fmod(yStart, gridSize)) / fabs(directionY);
-  zTD = fabs(std::fmod(zStart, gridSize)) / fabs(directionZ);
+  xTD = getInitialTD(xStart, directionX);
+  yTD = getInitialTD(yStart, directionY);
+  zTD = getInitialTD(zStart, directionZ);
 
   if (xDelta == std::numeric_limits<float>::infinity()) {
     xTD = std::numeric_limits<float>::infinity();
@@ -71,15 +94,15 @@ void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, floa
   grids.push_back(std::make_tuple(x, y, z));
   while (x != xEnd || y != yEnd || z != zEnd) {
     // only compare the dimension which has not travelled the whole distance
-    if (xTD < yTD && xTD < zTD && x != xEnd) {
+    if (xTD < yTD && xTD < zTD) {
       // xTD is the smallest
       xTD += xDelta;
       x += xStep;
-    } else if (yTD < zTD && y != yEnd) {
+    } else if (yTD < zTD) {
       // yTD is the smallest
       yTD += yDelta;
       y += yStep;
-    } else if (z != zEnd){
+    } else {
       // zTD is the smallest
       zTD += zDelta;
       z += zStep;
@@ -113,5 +136,17 @@ void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector
 }
 
 Grid* OccupancyGridMap::getGridByIndex(int x, int y, int z) {
-  return &grids.at((xMapLength * yMapLength) * (z - zIndexMin) + xMapLength * (y - yIndexMin) + x);
+  return &mapGrids.at((xMapLength * yMapLength) * (z - zIndexMin) + xMapLength * (y - yIndexMin) + x - xIndexMin);
+}
+
+void OccupancyGridMap::getGridIndex(unsigned int gridVectorIndex, int &x, int &y, int &z) {
+  z = (gridVectorIndex) / (xMapLength * yMapLength) + zIndexMin;
+  y = (gridVectorIndex - (z - zIndexMin) * xMapLength * yMapLength) / yMapLength + yIndexMin;
+  x = (gridVectorIndex - (z - zIndexMin) * xMapLength * yMapLength - yMapLength * (y - yIndexMin)) + xIndexMin;
+}
+
+void OccupancyGridMap::gridIndexToPosition(int xIndex, int yIndex, int zIndex, float &x, float &y, float &z) {
+  x = xIndex * gridSize + originX;
+  y = yIndex * gridSize + originY;
+  z = zIndex * gridSize + originZ;
 }

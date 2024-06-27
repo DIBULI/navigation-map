@@ -1,9 +1,8 @@
-
-
 include_directories(
   include
-  ${catkin_INCLUDE_DIRS}
 )
+
+set(OGM_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include" CACHE STRING "Path of the OGM include directories")
 
 ## Declare a C++ library
 add_library(occupancy_grid_map_lib
