@@ -6,6 +6,9 @@
 #include <tuple>
 #include <iostream>
 #include <limits>
+#include <fstream>
+#include <iostream>
+#include <filesystem>
 #include "grid.hpp"
 
 class OccupancyGridMap {
@@ -46,6 +49,8 @@ public:
   void updateMap(float xPos, float yPos, float zPos, std::vector<std::tuple<float, float, float>> points);
 
   Grid* getGridByIndex(int x, int y, int z);
+
+  void outputAsPointCloud(std::string filepath);
 };
 
 #endif /* OGM_HPP */

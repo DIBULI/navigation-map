@@ -53,6 +53,10 @@ float OccupancyGridMap::getInitialTD(float start, float direction) {
 }
 
 void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, float xDes, float yDes, float zDes, std::vector<std::tuple<int, int, int>> &grids) {
+  xDes = std::max(std::min(xDes, mapMaxX - gridSize/2), mapMinX + gridSize/2);
+  yDes = std::max(std::min(yDes, mapMaxY - gridSize/2), mapMinY + gridSize/2);
+  zDes = std::max(std::min(zDes, mapMaxZ - gridSize/2), mapMinZ + gridSize/2);
+
   float directionX, directionY, directionZ;
   directionX = xDes - xStart;
   directionY = yDes - yStart;
@@ -120,6 +124,7 @@ void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector
 
   for (auto &point : points) {
     std::tie(x, y, z) = point;
+    
     gridTravel(xPos, yPos, zPos, x, y, z, grids);
     
     for (size_t i = 0; i < grids.size() - 1; i++) {
@@ -149,4 +154,39 @@ void OccupancyGridMap::gridIndexToPosition(int xIndex, int yIndex, int zIndex, f
   x = xIndex * gridSize + originX;
   y = yIndex * gridSize + originY;
   z = zIndex * gridSize + originZ;
+}
+
+void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
+  std::ofstream outFile(filepath + "/point_cloud.ply");
+  if (!outFile) {
+      std::cerr << "Can not open the point cloud file!" << std::endl;
+      return;
+  }
+
+  uint32_t point_num = 0;
+  for (size_t i = 0; i < this->mapGrids.size(); i++) {
+    if (this->mapGrids[i].isOccupied()) {
+      point_num++;
+    }
+  }
+
+  outFile << "ply\n";
+  outFile << "format ascii 1.0\n";
+  outFile << "element vertex " << point_num << "\n";
+  outFile << "property float x\n";
+  outFile << "property float y\n";
+  outFile << "property float z\n";
+  outFile << "end_header\n";
+
+  float x, y, z;
+  int xIndex, yIndex, zIndex;
+  for (size_t i = 0; i < this->mapGrids.size(); i++) {
+    if (this->mapGrids[i].isOccupied()) {
+      this->getGridIndex(i, xIndex, yIndex, zIndex);
+      this->gridIndexToPosition(xIndex, yIndex, zIndex, x, y, z);
+      outFile << x << " " << y << " " << z << "\n";
+    }
+  }
+
+  outFile.close();
 }
