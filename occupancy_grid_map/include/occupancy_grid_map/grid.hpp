@@ -2,6 +2,13 @@
 #define GRID_HPP
 
 #include <cmath>
+#include <Eigen/Core>
+
+enum GridState {
+  UNKNOWN,
+  OCCUPIED,
+  FREE
+};
 
 class Grid {
 public:
@@ -20,6 +27,14 @@ public:
   void miss();
 
   bool isOccupied();
+
+  Eigen::Vector3f point;
+  Eigen::Vector3f normal;
+  bool isSurfaceVoxel = false;
+  GridState state;
+  bool reachable = true;
+  float observed_score = 0;
+
 };
 
 #endif /* GRID_HPP */

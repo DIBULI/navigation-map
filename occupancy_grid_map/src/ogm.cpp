@@ -62,8 +62,6 @@ void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, floa
   directionY = yDes - yStart;
   directionZ = zDes - zStart;
 
-  float length = sqrt(directionX * directionX + directionY * directionY + directionZ * directionZ);
-  
   int xStep, yStep, zStep;
   xStep = directionX > 0 ? 1 : -1;
   yStep = directionY > 0 ? 1 : -1;
