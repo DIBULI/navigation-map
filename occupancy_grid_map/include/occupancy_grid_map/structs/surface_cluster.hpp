@@ -1,0 +1,43 @@
+#ifndef SURFACE_CLUSTER_HPP
+#define SURFACE_CLUSTER_HPP
+
+#include <map>
+#include <set>
+#include <vector>
+#include <atomic>
+#include <iostream>
+
+class Grid;
+
+
+class SurfaceCluster {
+public:
+  SurfaceCluster();
+  ~SurfaceCluster();
+
+  bool containsSurface(int x, int y, int z);
+  bool containsEdge(int x, int y, int z);
+
+  int id;
+  uint32_t surfacesNumber;
+  uint32_t surfaceEdgeNumber;
+
+  std::vector<Grid*> surfaceGrids;
+  std::map<int, std::map<int, std::map<int, Grid*>>> surfaceEdges;
+
+  static void mergeTwoSurfaceClusters(SurfaceCluster* main, SurfaceCluster* to_be_merged);
+
+  void add_surface(int x, int y, int z, Grid* grid);
+  void add_surface_edge(int x, int y, int z, Grid* grid);
+
+  void remove_surface_edge(int x, int y, int z);
+};
+
+
+struct SurfaceClusterDescendingOrder {
+  bool operator() (const SurfaceCluster *a, const SurfaceCluster *b) const {
+    return a->id < b->id;  // Sort in ascending order
+  }
+};
+
+#endif /* SURFACE_CLUSTER_HPP */

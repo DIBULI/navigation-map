@@ -1,6 +1,6 @@
-#include "occupancy_grid_map/grid.hpp"
+#include "occupancy_grid_map/structs/grid.hpp"
 
-Grid::Grid() {}
+Grid::Grid(): surface_cluster(nullptr) {}
 
 Grid::~Grid() {}
 
@@ -16,4 +16,8 @@ void Grid::miss() {
 
 bool Grid::isOccupied() {
   return occupancyProbabilityLog > 40;
+}
+
+bool Grid::isFree() {
+  return occupancyProbabilityLog < -4;
 }

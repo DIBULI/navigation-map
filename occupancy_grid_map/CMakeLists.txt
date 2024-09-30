@@ -9,7 +9,9 @@ set(OGM_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include" CACHE STRING "Path of 
 
 ## Declare a C++ library
 add_library(occupancy_grid_map_lib
-  src/grid.cpp
+  src/structs/grid.cpp
+  src/structs/surface_cluster.cpp
+  src/operators/surface_operator.cpp
   src/ogm.cpp
 )
 

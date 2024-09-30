@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
     return -1;
   }
 
-  OccupancyGridMap ogm(0.0f, 0.0f, 0.0f, resolution, -5.5, 5.5, -5.5, 5.5, -1.0f, 4.0f);
+  OccupancyGridMap ogm(0.0f, 0.0f, 0.0f, resolution, -7.5, 7.5, -7.5, 7.5, -1.0f, 6.0f);
   std::vector<std::thread> threads;
 
   int pc_files_index = 0;
@@ -136,6 +136,9 @@ int main(int argc, char **argv) {
     } else {
       ogm.updateMap(t.x(), t.y(), t.z(), points[pc_files_index]);
     }
+
+    std::cout << "OGM - free: " << ogm.freeGridNum << ", occupied: " << ogm.occupiedGridNum << ", unknown: " << ogm.unknownGridNum << std::endl; 
+    std::cout << "OGM - surfaces: " << ogm.surfaceOperator.surface_clusters.size() << std::endl; 
 
     pc_files_index++;
   }

@@ -9,7 +9,9 @@
 #include <fstream>
 #include <iostream>
 #include <filesystem>
-#include "grid.hpp"
+
+#include "occupancy_grid_map/structs/grid.hpp"
+#include "occupancy_grid_map/operators/surface_operator.hpp"
 
 class OccupancyGridMap {
 public:
@@ -33,6 +35,14 @@ public:
   float originY;
   float originZ;
 
+  // numbers to count different grid types
+  uint32_t freeGridNum = 0;
+  uint32_t occupiedGridNum = 0;
+  uint32_t unknownGridNum = 0;
+  uint32_t totalGridNum = 0;
+
+  SurfaceOperator surfaceOperator;
+
   void getGridIndex(float x, float y, float z, int &xIndex, int &yIndex, int &zIndex);
 
   void getGridIndex(unsigned int gridVectorIndex, int &x, int &y, int &z);
@@ -49,6 +59,10 @@ public:
   void updateMap(float xPos, float yPos, float zPos, std::vector<std::tuple<float, float, float>> points);
 
   Grid* getGridByIndex(int x, int y, int z);
+
+  Grid* getNeightbourGrid(int x, int y, int z, int nbX, int nbY, int nbZ);
+
+  void calNorm(int x, int y, int z);
 
   void outputAsPointCloud(std::string filepath);
 };
