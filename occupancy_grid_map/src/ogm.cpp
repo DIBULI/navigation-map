@@ -57,9 +57,9 @@ float OccupancyGridMap::getInitialTD(float start, float direction) {
 }
 
 void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, float xDes, float yDes, float zDes, std::vector<std::tuple<int, int, int>> &grids) {
-  xDes = std::max(std::min(xDes, mapMaxX - gridSize/4), mapMinX + gridSize/4);
-  yDes = std::max(std::min(yDes, mapMaxY - gridSize/5), mapMinY + gridSize/5);
-  zDes = std::max(std::min(zDes, mapMaxZ - gridSize/6), mapMinZ + gridSize/6);
+  xDes = std::max(std::min(xDes, mapMaxX), mapMinX);
+  yDes = std::max(std::min(yDes, mapMaxY), mapMinY);
+  zDes = std::max(std::min(zDes, mapMaxZ), mapMinZ);
 
   float directionX, directionY, directionZ;
   directionX = xDes - xStart;
@@ -100,15 +100,15 @@ void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, floa
   grids.push_back(std::make_tuple(x, y, z));
   while (x != xEnd || y != yEnd || z != zEnd) {
     // only compare the dimension which has not travelled the whole distance
-    if (xTD < yTD && xTD < zTD) {
+    if ((xTD < yTD && xTD < zTD) && x != xEnd || (y == yEnd && z == zEnd)) {
       // xTD is the smallest
       xTD += xDelta;
       x += xStep;
-    } else if (yTD < zTD) {
+    } else if (yTD < zTD && y != yEnd || z == zEnd ) {
       // yTD is the smallest
       yTD += yDelta;
       y += yStep;
-    } else {
+    } else if (z != zEnd) {
       // zTD is the smallest
       zTD += zDelta;
       z += zStep;
