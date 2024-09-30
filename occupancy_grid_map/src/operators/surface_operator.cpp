@@ -8,9 +8,8 @@ SurfaceOperator::SurfaceOperator(): surface_cluster_global_id(0) {
         if (dx == 0 && dy == 0 && dz == 0) continue;
         if (dx == 0 || dy == 0 || dz == 0) {
           connectedNeighbours.push_back(std::make_tuple(dx, dy, dz));
-        } else {
-          indirectNeighbours.push_back(std::make_tuple(dx, dy, dz));
-        }
+        } 
+        surrNeighbours.push_back(std::make_tuple(dx, dy, dz));
       }
     }
   }
@@ -64,6 +63,10 @@ void SurfaceOperator::grid_operator(Grid* grid, int x, int y, int z, OccupancyGr
     grid->isSurfaceEdge = true;
     grid->isSurfaceVoxel = false;
   }
+
+  if (grid->isSurfaceEdge || grid->isSurfaceVoxel) {
+    this->calNorm(x, y, z, grid, gridMap);
+  }
   
   if (surface_cluster_ptrs.size() > 0 && (grid->isSurfaceEdge || grid->isSurfaceVoxel)) { // two surfaces are connected, no matter if it's surface or edge
     // connect two surface clusters
@@ -108,5 +111,31 @@ bool SurfaceOperator::is_surface(int unknownNums, int occupiedNums, int surfaceN
 }
 
 bool SurfaceOperator::is_edge(int unknownNums, int occupiedNums, int surfaceNums, int surfaceEdgeNums) {
-  return unknownNums == 0 && occupiedNums != 0 && occupiedNums != 6 && surfaceNums != 0;
+  return unknownNums != 0 && occupiedNums != 0 && occupiedNums != 6 && surfaceNums != 0;
+}
+
+void SurfaceOperator::calNorm(int x, int y, int z, Grid* grid, OccupancyGridMap* gridMap) {
+  // calculate the normal vector based on the surrounding 26 voxels
+  float x_ax=0;
+  float y_ax=0;
+  float z_ax=0;
+
+  int dx, dy, dz;
+
+  for (int i=0; i<surrNeighbours.size(); i++) {
+    std::tie(dx, dy, dz) = surrNeighbours[i];
+    Grid* neiGrid = gridMap->getNeightbourGrid(x, y, z, dx, dy, dz);
+
+    if (neiGrid->state == GridState::FREE) {
+      x_ax += dx;
+      y_ax += dy;
+      z_ax += dz;
+    }
+  } 
+
+  if (grid->normal == nullptr) {
+    grid->normal = new Eigen::Vector3f();
+  }
+  *(grid->normal) << x_ax, y_ax, z_ax;
+  grid->normal->normalize();
 }

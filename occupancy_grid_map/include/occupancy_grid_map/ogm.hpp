@@ -62,7 +62,7 @@ public:
 
   Grid* getNeightbourGrid(int x, int y, int z, int nbX, int nbY, int nbZ);
 
-  void calNorm(int x, int y, int z);
+  
 
   void outputAsPointCloud(std::string filepath);
 };

@@ -159,9 +159,6 @@ void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector
 
       grid->isSurfaceVoxel = false;
       grid->isSurfaceEdge = false;
-
-      // remove from the surface cluster
-      
     }
 
     // check the last free grid 
@@ -198,10 +195,6 @@ void OccupancyGridMap::gridIndexToPosition(int xIndex, int yIndex, int zIndex, f
   z = zIndex * gridSize + originZ;
 }
 
-void OccupancyGridMap::calNorm(int x, int y, int z) {
-  // get the 
-}
-
 void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
   std::ofstream outFile(filepath + "/point_cloud.ply");
   if (!outFile) {
@@ -233,7 +226,8 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
     if (this->mapGrids[i].isOccupied()) {
       this->getGridIndex(i, xIndex, yIndex, zIndex);
       this->gridIndexToPosition(xIndex, yIndex, zIndex, x, y, z);
-      outFile << x << " " << y << " " << z << " "  << 0 << " " << 255 << " " << 0 << "\n";
+      outFile << x << " " << y << " " << z << " "  << 180 << " " << 180 << " " 
+        << int(255 * (zIndex - this->zIndexMin) / (zIndexMax - zIndexMin))  << "\n";
     }
   }
 
@@ -261,13 +255,18 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
   surfacePCOutFile << "property uchar red\n";
   surfacePCOutFile << "property uchar green\n";
   surfacePCOutFile << "property uchar blue\n";
+  surfacePCOutFile << "property float nx\n";
+  surfacePCOutFile << "property float ny\n";
+  surfacePCOutFile << "property float nz\n";
   surfacePCOutFile << "end_header\n";
 
   for (size_t i = 0; i < this->mapGrids.size(); i++) {
     if (this->mapGrids[i].isSurfaceVoxel) {
       this->getGridIndex(i, xIndex, yIndex, zIndex);
       this->gridIndexToPosition(xIndex, yIndex, zIndex, x, y, z);
-      surfacePCOutFile << x << " " << y << " " << z << " " << 255 << " " << 0 << " " << 0 << "\n";
+      surfacePCOutFile << x << " " << y << " " << z << " " << 80 << " " << 10 << " " 
+      << int(255 * (zIndex - this->zIndexMin) / (zIndexMax - zIndexMin)) << " "
+      << this->mapGrids[i].normal->x() << " " << this->mapGrids[i].normal->y() << " " << this->mapGrids[i].normal->z() << "\n";
     }
   }
 
@@ -295,13 +294,18 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
   surfaceEdgeFile << "property uchar red\n";
   surfaceEdgeFile << "property uchar green\n";
   surfaceEdgeFile << "property uchar blue\n";
+  surfaceEdgeFile << "property float nx\n";
+  surfaceEdgeFile << "property float ny\n";
+  surfaceEdgeFile << "property float nz\n";
   surfaceEdgeFile << "end_header\n";
 
   for (size_t i = 0; i < this->mapGrids.size(); i++) {
     if (this->mapGrids[i].isSurfaceEdge) {
       this->getGridIndex(i, xIndex, yIndex, zIndex);
       this->gridIndexToPosition(xIndex, yIndex, zIndex, x, y, z);
-      surfaceEdgeFile << x << " " << y << " " << z << " " << 0 << " " << 0 << " " << 255 << "\n";
+      surfaceEdgeFile << x << " " << y << " " << z << " " << 10 << " " << 80 << " " 
+      << int(255 * (zIndex - this->zIndexMin) / (zIndexMax - zIndexMin)) << " "
+      << this->mapGrids[i].normal->x() << " " << this->mapGrids[i].normal->y() << " " << this->mapGrids[i].normal->z() << "\n";
     }
   }
 

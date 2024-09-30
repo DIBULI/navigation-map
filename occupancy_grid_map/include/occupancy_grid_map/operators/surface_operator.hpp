@@ -20,10 +20,12 @@ public:
 
   SurfaceCluster* create_new_surface_cluster(Grid* &grid);
 
+  void calNorm(int x, int y, int z, Grid* grid, OccupancyGridMap* gridMap);
+
   std::atomic<int> surface_cluster_global_id;
 
   std::vector<std::tuple<int, int, int>> connectedNeighbours;
-  std::vector<std::tuple<int, int, int>> indirectNeighbours;
+  std::vector<std::tuple<int, int, int>> surrNeighbours;
 
   std::map<int, SurfaceCluster *> surface_clusters;
 };
