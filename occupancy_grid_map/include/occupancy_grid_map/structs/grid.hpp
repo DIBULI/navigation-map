@@ -52,7 +52,7 @@ public:
   bool isSurfaceVoxel = false;
   bool isSurfaceEdge = false;
   bool visited = false;
-  bool reachable = true;
+  bool reachable = true; // only used by surface edge voxels
 };
 
 #endif /* GRID_HPP */

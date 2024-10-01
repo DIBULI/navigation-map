@@ -7,14 +7,23 @@ float mapMinX, float mapMaxX, float mapMinY, float mapMaxY, float mapMinZ, float
 : originX(originX), originY(originY), originZ(originZ), gridSize(gridSize),
 mapMinX(mapMinX), mapMaxX(mapMaxX), mapMinY(mapMinY), mapMaxY(mapMaxY), mapMinZ(mapMinZ), mapMaxZ(mapMaxZ) 
 {
+  float half_grid_size = gridSize / 2;
+  this->mapMinX -= half_grid_size;
+  this->mapMinY -= half_grid_size;
+  this->mapMinZ -= half_grid_size;
+
+  this->mapMaxX += half_grid_size;
+  this->mapMaxY += half_grid_size;
+  this->mapMaxZ += half_grid_size;
+
   // assign the mapGrids
   xIndexMin = floor((mapMinX - originX) / gridSize);
   yIndexMin = floor((mapMinY - originY) / gridSize);
   zIndexMin = floor((mapMinZ - originZ) / gridSize);
 
-  xIndexMax = floor((mapMaxX - originX) / gridSize);
-  yIndexMax = floor((mapMaxY - originY) / gridSize);
-  zIndexMax = floor((mapMaxZ - originZ) / gridSize);
+  xIndexMax = ceil((mapMaxX - originX) / gridSize);
+  yIndexMax = ceil((mapMaxY - originY) / gridSize);
+  zIndexMax = ceil((mapMaxZ - originZ) / gridSize);
   
   xMapLength = xIndexMax - xIndexMin + 1;
   yMapLength = yIndexMax - yIndexMin + 1;
@@ -25,6 +34,14 @@ mapMinX(mapMinX), mapMaxX(mapMaxX), mapMinY(mapMinY), mapMaxY(mapMaxY), mapMinZ(
   totalGridNum = unknownGridNum;
   
   mapGrids.resize(totalGridNum);
+
+  std::cout << "Map size:" << std::endl;
+  std::cout << "mapMinX:" << this->mapMinX << ", mapMaxX: " << this->mapMaxX << std::endl;
+  std::cout << "mapMinY:" << this->mapMinY << ", mapMaxY: " << this->mapMaxY << std::endl;
+  std::cout << "mapMinZ:" << this->mapMinZ << ", mapMaxZ: " << this->mapMaxZ << std::endl;
+  std::cout << "xMapLength:" << xMapLength << ", xIndexMin: " << xIndexMin << ", xIndexMax: " << xIndexMax <<  std::endl;
+  std::cout << "yMapLength:" << yMapLength << ", yIndexMin: " << yIndexMin << ", yIndexMax: " << yIndexMax <<  std::endl;
+  std::cout << "zMapLength:" << zMapLength << ", zIndexMin: " << zIndexMin << ", zIndexMax: " << zIndexMax <<  std::endl;
 }
 
 OccupancyGridMap::~OccupancyGridMap() {}
@@ -56,10 +73,9 @@ float OccupancyGridMap::getInitialTD(float start, float direction) {
   }
 }
 
-void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, float xDes, float yDes, float zDes, std::vector<std::tuple<int, int, int>> &grids) {
-  xDes = std::max(std::min(xDes, mapMaxX), mapMinX);
-  yDes = std::max(std::min(yDes, mapMaxY), mapMinY);
-  zDes = std::max(std::min(zDes, mapMaxZ), mapMinZ);
+bool OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, float xDes, float yDes, float zDes, std::vector<std::tuple<int, int, int>> &grids) {
+  bool exceedMapRegion = 
+    xDes < mapMinX || xDes > mapMaxX || yDes < mapMinY || yDes > mapMaxY || zDes < mapMinZ || zDes > mapMaxZ;
 
   float directionX, directionY, directionZ;
   directionX = xDes - xStart;
@@ -97,6 +113,7 @@ void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, floa
     zTD = std::numeric_limits<float>::infinity();
   }
 
+  // TODO: check when xstart or xend are outside of the map scope, this grid travel may not work.
   grids.push_back(std::make_tuple(x, y, z));
   while (x != xEnd || y != yEnd || z != zEnd) {
     // only compare the dimension which has not travelled the whole distance
@@ -116,6 +133,7 @@ void OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, floa
 
     grids.push_back(std::make_tuple(x, y, z));
   }
+  return exceedMapRegion;
 }
 
 void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector<std::tuple<float, float, float>> points) {
@@ -126,8 +144,8 @@ void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector
 
   for (auto &point : points) {
     std::tie(x, y, z) = point;
-    
-    gridTravel(xPos, yPos, zPos, x, y, z, grids);
+
+    bool exceedMapRegion = gridTravel(xPos, yPos, zPos, x, y, z, grids);
     
     for (size_t i = 0; i < grids.size() - 1; i++) {
       std::tie(gridX, gridY, gridZ) = grids[i];
@@ -145,7 +163,11 @@ void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector
     }
     std::tie(gridX, gridY, gridZ) = grids[grids.size() - 1];
     grid = getGridByIndex(gridX, gridY, gridZ);
-    grid->hit();
+    if (!exceedMapRegion) {
+      grid->hit();
+    } else {
+      grid->miss(); 
+    }
 
     // post process
     if (grid->state == GridState::UNKNOWN && grid->isOccupied()) {
@@ -162,10 +184,12 @@ void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector
     }
 
     // check the last free grid 
-    std::tie(gridX, gridY, gridZ) = grids[grids.size() - 2];
-    grid = getGridByIndex(gridX, gridY, gridZ);
-    if (grid->isFree()) {
-      surfaceOperator.grid_operator(grid, gridX, gridY, gridZ, this);
+    if (grid->isOccupied()) {
+      std::tie(gridX, gridY, gridZ) = grids[grids.size() - 2];
+      grid = getGridByIndex(gridX, gridY, gridZ);
+      if (grid->isFree()) {
+        surfaceOperator.grid_operator(grid, gridX, gridY, gridZ, this);
+      }
     }
 
     grids.clear();
@@ -180,7 +204,7 @@ Grid* OccupancyGridMap::getNeightbourGrid(int x, int y, int z, int nbX, int nbY,
   int xIndex = std::max(xIndexMin, std::min(x + nbX, xIndexMax));
   int yIndex = std::max(yIndexMin, std::min(y + nbY, yIndexMax));
   int zIndex = std::max(zIndexMin, std::min(z + nbZ, zIndexMax));
-  return &mapGrids.at((xMapLength * yMapLength) * (zIndex - zIndexMin) + xMapLength * (yIndex - yIndexMin) + xIndex - xIndexMin);
+  return getGridByIndex(xIndex, yIndex, zIndex);
 }
 
 void OccupancyGridMap::getGridIndex(unsigned int gridVectorIndex, int &x, int &y, int &z) {
@@ -280,7 +304,7 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
 
   point_num = 0;
   for (size_t i = 0; i < this->mapGrids.size(); i++) {
-    if (this->mapGrids[i].isSurfaceEdge) {
+    if (this->mapGrids[i].isSurfaceEdge && this->mapGrids[i].reachable) {
       point_num++;
     }
   }
@@ -300,7 +324,7 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
   surfaceEdgeFile << "end_header\n";
 
   for (size_t i = 0; i < this->mapGrids.size(); i++) {
-    if (this->mapGrids[i].isSurfaceEdge) {
+    if (this->mapGrids[i].isSurfaceEdge && this->mapGrids[i].reachable) {
       this->getGridIndex(i, xIndex, yIndex, zIndex);
       this->gridIndexToPosition(xIndex, yIndex, zIndex, x, y, z);
       surfaceEdgeFile << x << " " << y << " " << z << " " << 10 << " " << 80 << " " 
@@ -308,6 +332,54 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
       << this->mapGrids[i].normal->x() << " " << this->mapGrids[i].normal->y() << " " << this->mapGrids[i].normal->z() << "\n";
     }
   }
-
+  
   surfaceEdgeFile.close();
+
+
+  std::ofstream mapBoundaryFile(filepath + "/point_cloud_map_boundary.ply");
+  if (!mapBoundaryFile) {
+      std::cerr << "Can not open the point cloud file!" << std::endl;
+      return;
+  }
+
+  point_num = 0;
+  for (size_t i = 0; i < this->mapGrids.size(); i++) {
+    this->getGridIndex(i, xIndex, yIndex, zIndex);
+    if (xIndex == this->xIndexMin || xIndex == this->xIndexMax ||
+        yIndex == this->yIndexMin || yIndex == this->yIndexMax ||
+        zIndex == this->zIndexMin || zIndex == this->zIndexMax
+      ) {
+      point_num++;
+    }
+  }
+
+  mapBoundaryFile << "ply\n";
+  mapBoundaryFile << "format ascii 1.0\n";
+  mapBoundaryFile << "element vertex " << point_num << "\n";
+  mapBoundaryFile << "property float x\n";
+  mapBoundaryFile << "property float y\n";
+  mapBoundaryFile << "property float z\n";
+  mapBoundaryFile << "property uchar red\n";
+  mapBoundaryFile << "property uchar green\n";
+  mapBoundaryFile << "property uchar blue\n";
+  mapBoundaryFile << "end_header\n";
+
+  for (size_t i = 0; i < this->mapGrids.size(); i++) {
+    this->getGridIndex(i, xIndex, yIndex, zIndex);
+    if (xIndex == this->xIndexMin || xIndex == this->xIndexMax ||
+        yIndex == this->yIndexMin || yIndex == this->yIndexMax ||
+        zIndex == this->zIndexMin || zIndex == this->zIndexMax) {
+      this->gridIndexToPosition(xIndex, yIndex, zIndex, x, y, z);
+      
+      mapBoundaryFile << x << " " << y << " " << z << " " 
+      << (this->mapGrids[i].state == GridState::UNKNOWN ? 255:0) << " " 
+      << (this->mapGrids[i].state == GridState::FREE ? 255:0) << " " 
+      << (this->mapGrids[i].state == GridState::OCCUPIED ? 255:0) << "\n";
+    }
+  }
+  
+  mapBoundaryFile.close();
+
+
+  std::cout << "All finished." << std::endl;
 }

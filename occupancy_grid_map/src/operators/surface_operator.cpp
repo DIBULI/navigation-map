@@ -29,6 +29,9 @@ void SurfaceOperator::grid_operator(Grid* grid, int x, int y, int z, OccupancyGr
   for (int i = 0; i < connectedNeighbours.size(); i++) {
     std::tie(dx, dy, dz) = connectedNeighbours[i];
     Grid* neiGrid = gridMap->getNeightbourGrid(x, y, z, dx, dy, dz);
+    if (neiGrid == grid) {
+      continue;
+    }
     unknownNums += neiGrid->state == GridState::UNKNOWN ? 1 : 0;
     occupiedNums += neiGrid->state == GridState::OCCUPIED ? 1 : 0;
     surfaceNums += neiGrid->isSurfaceVoxel ? 1 : 0;
@@ -53,6 +56,8 @@ void SurfaceOperator::grid_operator(Grid* grid, int x, int y, int z, OccupancyGr
 
     grid->isSurfaceEdge = false;
     grid->isSurfaceVoxel = true;
+
+    this->calNorm(x, y, z, grid, gridMap);
   } else if (is_edge(unknownNums, occupiedNums, surfaceNums, surfaceEdgeNums) && !grid->isSurfaceVoxel) { // is surface edge
     // assign the surface edge to the surface cluster
     if (surface_cluster_ptrs.size() == 0 && grid->surface_cluster == nullptr) {
@@ -62,10 +67,14 @@ void SurfaceOperator::grid_operator(Grid* grid, int x, int y, int z, OccupancyGr
 
     grid->isSurfaceEdge = true;
     grid->isSurfaceVoxel = false;
-  }
 
-  if (grid->isSurfaceEdge || grid->isSurfaceVoxel) {
-    this->calNorm(x, y, z, grid, gridMap);
+    if (x == gridMap->xIndexMax || x == gridMap->xIndexMin ||
+        y == gridMap->yIndexMax || y == gridMap->yIndexMin ||
+        z == gridMap->zIndexMax || z == gridMap->zIndexMin) {
+      grid->reachable = false;
+    } else {
+      this->calNorm(x, y, z, grid, gridMap);
+    }
   }
   
   if (surface_cluster_ptrs.size() > 0 && (grid->isSurfaceEdge || grid->isSurfaceVoxel)) { // two surfaces are connected, no matter if it's surface or edge

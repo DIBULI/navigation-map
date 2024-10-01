@@ -51,7 +51,7 @@ public:
 
   float getInitialTD(float start, float direction);
 
-  void gridTravel(float xStart, float yStart, float zStart, float xDes, float yDes, float zDes, std::vector<std::tuple<int, int, int>> &grids);
+  bool gridTravel(float xStart, float yStart, float zStart, float xDes, float yDes, float zDes, std::vector<std::tuple<int, int, int>> &grids);
 
   /**
    * The received position and points should all be described under the map frame
