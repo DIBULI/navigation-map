@@ -33,10 +33,14 @@ public:
 
   GridState state = UNKNOWN;
 
+  uint8_t depth = 1;
+  bool voxelCollpased = false;
+  std::vector<Grid *> subgrids;
+
   /**
    * Only store the point inside the occupied grid
    */
-  Eigen::Vector3f* point;
+  std::vector<Eigen::Vector3f*> points;
 
   /**
    * Only store the normal inside the surface grid/edge
