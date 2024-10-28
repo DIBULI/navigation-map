@@ -62,13 +62,13 @@ float OccupancyGridMap::getInitialTD(float start, float direction) {
     if (start >= 0) {
       return fabs((gridSize - fmod(start, gridSize)) / direction);
     } else {
-      return fabs((-fmod(start, gridSize)) / direction);
+      return fabs((fmod(start, gridSize)) / direction);
     }
   } else {
     if (start >= 0) {
-      return fabs((fmod(start, gridSize)) / -direction);
+      return fabs((fmod(start, gridSize)) / direction);
     } else {
-      return fabs((gridSize - fmod(-start, gridSize)) / -direction);
+      return fabs((gridSize - fmod(-start, gridSize)) / direction);
     }
   }
 }
@@ -179,8 +179,24 @@ void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector
       freeGridNum -= 1;
       grid->state = GridState::OCCUPIED;
 
+      // if (grid->isSurfaceVoxel) {
+        // TODO: surface won't change back to non surface
+      // }
+      if (grid->isSurfaceEdge) { // surface edge can be changed to the non-free voxel
+        grid->surface_cluster->remove_surface_edge(gridX, gridY, gridZ);
+        grid->surface_cluster = nullptr;
+        grid->isSurfaceEdge = false;
+      }
+      grid->isSurfaceVoxel = false;
+    } else if (grid->state == GridState::OCCUPIED && grid->isFree()) {
+      occupiedGridNum -= 1;
+      freeGridNum += 1;
+      grid->state = GridState::FREE;
+
       grid->isSurfaceVoxel = false;
       grid->isSurfaceEdge = false;
+
+      // TODO: change back to FREE, for now, do nothing
     }
 
     // check the last free grid 
@@ -198,6 +214,13 @@ void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector
 
 Grid* OccupancyGridMap::getGridByIndex(int x, int y, int z) {
   return &mapGrids.at((xMapLength * yMapLength) * (z - zIndexMin) + xMapLength * (y - yIndexMin) + x - xIndexMin);
+}
+
+void OccupancyGridMap::getGridIndexByGridPtr(Grid* &gridPtr, int &x, int &y, int &z) {
+  int gridOffset = (gridPtr - &mapGrids[0]) / sizeof(Grid);
+  x = gridOffset % (xMapLength * yMapLength) % yMapLength / xMapLength;
+  y = gridOffset % (xMapLength * yMapLength) / yMapLength + yIndexMin;
+  z = gridOffset / (xMapLength * yMapLength) + zIndexMin;
 }
 
 Grid* OccupancyGridMap::getNeightbourGrid(int x, int y, int z, int nbX, int nbY, int nbZ) {
@@ -304,7 +327,7 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
 
   point_num = 0;
   for (size_t i = 0; i < this->mapGrids.size(); i++) {
-    if (this->mapGrids[i].isSurfaceEdge && this->mapGrids[i].reachable) {
+    if (this->mapGrids[i].isSurfaceEdge) {
       point_num++;
     }
   }
@@ -324,7 +347,7 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
   surfaceEdgeFile << "end_header\n";
 
   for (size_t i = 0; i < this->mapGrids.size(); i++) {
-    if (this->mapGrids[i].isSurfaceEdge && this->mapGrids[i].reachable) {
+    if (this->mapGrids[i].isSurfaceEdge) {
       this->getGridIndex(i, xIndex, yIndex, zIndex);
       this->gridIndexToPosition(xIndex, yIndex, zIndex, x, y, z);
       surfaceEdgeFile << x << " " << y << " " << z << " " << 10 << " " << 80 << " " 
@@ -334,7 +357,6 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
   }
   
   surfaceEdgeFile.close();
-
 
   std::ofstream mapBoundaryFile(filepath + "/point_cloud_map_boundary.ply");
   if (!mapBoundaryFile) {
@@ -381,5 +403,80 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
   mapBoundaryFile.close();
 
 
+  std::ofstream mapExpectedSurfacesFile(filepath + "/point_cloud_map_expected_surfaces.ply");
+  if (!mapExpectedSurfacesFile) {
+      std::cerr << "Can not open the point cloud unkonwn type file!" << std::endl;
+      return;
+  }
+
+  std::vector<std::tuple<int, int, int>> connectedNeighbours;
+  for (int dx = -1; dx <= 1; ++dx) {
+    for (int dy = -1; dy <= 1; ++dy) {
+      for (int dz = -1; dz <= 1; ++dz) {
+        if (dx == 0 && dy == 0 && dz == 0) continue;
+        if (dx == 0 || dy == 0 || dz == 0) {
+          connectedNeighbours.push_back(std::make_tuple(dx, dy, dz));
+        } 
+      }
+    }
+  }
+
+  std::vector<std::tuple<float, float, float>> ps;
+  std::vector<std::tuple<int, int, int>> psIndexes;
+
+  for (size_t i = 0; i < this->mapGrids.size(); i++) {
+    if (this->mapGrids[i].state == FREE) {
+      this->getGridIndex(i, xIndex, yIndex, zIndex);
+      this->gridIndexToPosition(xIndex, yIndex, zIndex, x, y, z);
+
+      int unknownNums = 0;
+      int occupiedNums = 0;
+      int surfaceNums = 0;
+      int surfaceEdgeNums = 0;
+      int dx, dy, dz;
+      for (int i = 0; i < connectedNeighbours.size(); i++) {
+        std::tie(dx, dy, dz) = connectedNeighbours[i];
+        Grid* neiGrid = this->getNeightbourGrid(xIndex, yIndex, zIndex, dx, dy, dz);
+
+        if (neiGrid == &mapGrids[i]) { // may happen if the grid is located on the map boundary
+          continue;
+        }
+        unknownNums += neiGrid->state == GridState::UNKNOWN ? 1 : 0;
+        occupiedNums += neiGrid->state == GridState::OCCUPIED ? 1 : 0;
+        surfaceNums += neiGrid->isSurfaceVoxel ? 1 : 0;
+        surfaceEdgeNums += neiGrid->isSurfaceEdge ? 1 : 0;
+      }
+
+      if (occupiedNums != 0 && occupiedNums != 6 && unknownNums == 0) {
+        ps.push_back(std::make_tuple(x, y, z));
+        psIndexes.push_back(std::make_tuple(xIndex, yIndex, zIndex));
+      }
+    }
+  }
+  
+  mapExpectedSurfacesFile << "ply\n";
+  mapExpectedSurfacesFile << "format ascii 1.0\n";
+  mapExpectedSurfacesFile << "element vertex " << ps.size() << "\n";
+  mapExpectedSurfacesFile << "property float x\n";
+  mapExpectedSurfacesFile << "property float y\n";
+  mapExpectedSurfacesFile << "property float z\n";
+  mapExpectedSurfacesFile << "property uchar red\n";
+  mapExpectedSurfacesFile << "property uchar green\n";
+  mapExpectedSurfacesFile << "property uchar blue\n";
+  mapExpectedSurfacesFile << "property uchar xi\n";
+  mapExpectedSurfacesFile << "property uchar yi\n";
+  mapExpectedSurfacesFile << "property uchar zi\n";
+  mapExpectedSurfacesFile << "end_header\n";
+
+  
+  for (int i=0; i<ps.size(); i++) {
+    std::tie(x, y, z) = ps[i];
+    std::tie(xIndex, yIndex, zIndex) = psIndexes[i];
+    mapExpectedSurfacesFile << x << " " << y << " " << z << " " << 120 << " " << 0 << " " << 0 
+    << " " << xIndex << " " << yIndex << " " << zIndex << "\n";
+  }
+  mapExpectedSurfacesFile.close();
+
   std::cout << "All finished." << std::endl;
 }
+

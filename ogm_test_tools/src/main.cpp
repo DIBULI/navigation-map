@@ -49,6 +49,7 @@ void loadPosesFromCSV(const std::string& filepath, std::vector<std::pair<Eigen::
       }
     }
     Eigen::Quaternionf pose(numbers[7], numbers[4], numbers[5], numbers[6]);
+    pose.normalize();
     poses.push_back(std::make_pair(pose, Eigen::Vector3f(numbers[1], numbers[2], numbers[3])));
   }
 }
@@ -110,7 +111,7 @@ int main(int argc, char **argv) {
     return -1;
   }
 
-  OccupancyGridMap ogm(0.0f, 0.0f, 0.0f, resolution, -7.5, 7.5, -7.5, 7.5, -1.0f, 6.0f);
+  OccupancyGridMap ogm(0.0f, 0.0f, 0.0f, resolution, -10, 10, -10, 10, -1.0f, 6.0f);
   std::vector<std::thread> threads;
 
   int pc_files_index = 0;
@@ -136,6 +137,9 @@ int main(int argc, char **argv) {
     } else {
       ogm.updateMap(t.x(), t.y(), t.z(), points[pc_files_index]);
     }
+
+    std::cout << "Drone position:" << t.x() << " " << t.y() << " " << t.z() << std::endl; 
+    std::cout << "Drone pose:" << q_T.w() << " " << q_T.x() << " " << q_T.y() << " " << q_T.z() << std::endl; 
 
     std::cout << "OGM - free: " << ogm.freeGridNum << ", occupied: " << ogm.occupiedGridNum << ", unknown: " << ogm.unknownGridNum << std::endl; 
     std::cout << "OGM - surfaces: " << ogm.surfaceOperator.surface_clusters.size() << std::endl; 

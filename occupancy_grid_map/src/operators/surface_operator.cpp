@@ -25,11 +25,11 @@ void SurfaceOperator::grid_operator(Grid* grid, int x, int y, int z, OccupancyGr
 
   // check the surrounding connected neighbours
   int dx, dy, dz;
-  std::set<SurfaceCluster *, SurfaceClusterDescendingOrder> surface_cluster_ptrs;
+  std::set<SurfaceCluster *, SurfaceClusterAscendingOrder> surface_cluster_ptrs;
   for (int i = 0; i < connectedNeighbours.size(); i++) {
     std::tie(dx, dy, dz) = connectedNeighbours[i];
     Grid* neiGrid = gridMap->getNeightbourGrid(x, y, z, dx, dy, dz);
-    if (neiGrid == grid) {
+    if (neiGrid == grid) { // may happen if the grid is located on the map boundary
       continue;
     }
     unknownNums += neiGrid->state == GridState::UNKNOWN ? 1 : 0;
@@ -42,64 +42,59 @@ void SurfaceOperator::grid_operator(Grid* grid, int x, int y, int z, OccupancyGr
     }
   }
 
-  if (is_surface(unknownNums, occupiedNums, surfaceNums, surfaceEdgeNums)) { // is surface
+  bool inBoundary = false;
+  if (x == gridMap->xIndexMax || x == gridMap->xIndexMin ||
+      y == gridMap->yIndexMax || y == gridMap->yIndexMin ||
+      z == gridMap->zIndexMax || z == gridMap->zIndexMin) {
+    inBoundary = false;
+  }
+
+  // if the grid in on the map boundary, 
+  if (is_surface(unknownNums, occupiedNums, surfaceNums, surfaceEdgeNums) || inBoundary) { // is surface
     // if this voxel does not belong to any surface cluster
     // create a new surface cluster
-    if (surface_cluster_ptrs.size() == 0 && grid->surface_cluster == nullptr) {
+    if (grid->surface_cluster == nullptr) {
       this->create_new_surface_cluster(grid);
       grid->surface_cluster->add_surface(x, y, z, grid);
-    }
-
-    if (grid->isSurfaceEdge) { // if the voxel was surface edge
+    } else if (grid->isSurfaceEdge) { // if the voxel was a surface edge
       grid->surface_cluster->remove_surface_edge(x, y, z);
+      grid->surface_cluster->add_surface(x, y, z, grid);
     }
 
     grid->isSurfaceEdge = false;
     grid->isSurfaceVoxel = true;
 
     this->calNorm(x, y, z, grid, gridMap);
-  } else if (is_edge(unknownNums, occupiedNums, surfaceNums, surfaceEdgeNums) && !grid->isSurfaceVoxel) { // is surface edge
+  } else if (is_edge(unknownNums, occupiedNums, surfaceNums, surfaceEdgeNums) && !grid->isSurfaceVoxel && !inBoundary) { // is surface edge
     // assign the surface edge to the surface cluster
-    if (surface_cluster_ptrs.size() == 0 && grid->surface_cluster == nullptr) {
+    if (grid->surface_cluster == nullptr) {
       this->create_new_surface_cluster(grid);
+    }
+    if (!grid->isSurfaceEdge) {
       grid->surface_cluster->add_surface_edge(x, y, z, grid);
     }
 
     grid->isSurfaceEdge = true;
     grid->isSurfaceVoxel = false;
 
-    if (x == gridMap->xIndexMax || x == gridMap->xIndexMin ||
-        y == gridMap->yIndexMax || y == gridMap->yIndexMin ||
-        z == gridMap->zIndexMax || z == gridMap->zIndexMin) {
-      grid->reachable = false;
-    } else {
-      this->calNorm(x, y, z, grid, gridMap);
-    }
+    this->calNorm(x, y, z, grid, gridMap);
   }
-  
+
   if (surface_cluster_ptrs.size() > 0 && (grid->isSurfaceEdge || grid->isSurfaceVoxel)) { // two surfaces are connected, no matter if it's surface or edge
     // connect two surface clusters
-    if (grid->surface_cluster != nullptr) { // add the current cluster and wait to be merged
-      surface_cluster_ptrs.insert(grid->surface_cluster);
-    }
-    if (grid->isSurfaceVoxel && grid->surface_cluster == nullptr) {
-      grid->surface_cluster = *(surface_cluster_ptrs.begin());
-      grid->surface_cluster->add_surface(x, y, z, grid);
-    }
-    if (grid->isSurfaceEdge && grid->surface_cluster == nullptr) {
-      grid->surface_cluster = *(surface_cluster_ptrs.begin());
-      grid->surface_cluster->add_surface_edge(x, y, z, grid);
-    }
-
     if (grid->isSurfaceEdge || grid->isSurfaceVoxel) {
+      if (grid->surface_cluster != nullptr) { // add the current cluster and wait to be merged
+        surface_cluster_ptrs.insert(grid->surface_cluster);
+      }
       // merge all the surface clusters
-      for (int j=1; j<surface_cluster_ptrs.size(); j++) {
+      for (int j = 1; j<surface_cluster_ptrs.size(); j++) {
         auto it = surface_cluster_ptrs.begin();
         std::advance(it, j);
         SurfaceCluster::mergeTwoSurfaceClusters(
           *surface_cluster_ptrs.begin(), 
           *it);
         surface_clusters.erase((*it)->id);
+        delete (*it);
       }
     }
   }

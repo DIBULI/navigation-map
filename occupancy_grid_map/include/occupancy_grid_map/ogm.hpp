@@ -60,9 +60,9 @@ public:
 
   Grid* getGridByIndex(int x, int y, int z);
 
-  Grid* getNeightbourGrid(int x, int y, int z, int nbX, int nbY, int nbZ);
+  void getGridIndexByGridPtr(Grid* &gridPtr, int &x, int &y, int &z);
 
-  
+  Grid* getNeightbourGrid(int x, int y, int z, int nbX, int nbY, int nbZ);
 
   void outputAsPointCloud(std::string filepath);
 };

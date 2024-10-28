@@ -19,10 +19,10 @@ public:
   bool containsEdge(int x, int y, int z);
 
   int id;
-  uint32_t surfacesNumber;
-  uint32_t surfaceEdgeNumber;
+  uint32_t surfacesNumber = 0;
+  uint32_t surfaceEdgeNumber = 0;
 
-  std::vector<Grid*> surfaceGrids;
+  std::set<Grid*> surfaceGrids;
   std::map<int, std::map<int, std::map<int, Grid*>>> surfaceEdges;
 
   static void mergeTwoSurfaceClusters(SurfaceCluster* main, SurfaceCluster* to_be_merged);
@@ -34,7 +34,7 @@ public:
 };
 
 
-struct SurfaceClusterDescendingOrder {
+struct SurfaceClusterAscendingOrder {
   bool operator() (const SurfaceCluster *a, const SurfaceCluster *b) const {
     return a->id < b->id;  // Sort in ascending order
   }
