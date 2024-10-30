@@ -35,6 +35,18 @@ mapMinX(mapMinX), mapMaxX(mapMaxX), mapMinY(mapMinY), mapMaxY(mapMaxY), mapMinZ(
   
   mapGrids.resize(totalGridNum);
 
+  unsigned int index = 0;
+  for (int z = zIndexMin; z <= zIndexMax; ++z) {
+      for (int y = yIndexMin; y <= yIndexMax; ++y) {
+          for (int x = xIndexMin; x <= xIndexMax; ++x) {
+              Grid& grid = mapGrids.at(index++);
+              grid.xIndex = x;
+              grid.yIndex = y;
+              grid.zIndex = z;
+          }
+      }
+  }
+
   std::cout << "Map size:" << std::endl;
   std::cout << "mapMinX:" << this->mapMinX << ", mapMaxX: " << this->mapMaxX << std::endl;
   std::cout << "mapMinY:" << this->mapMinY << ", mapMaxY: " << this->mapMaxY << std::endl;
@@ -47,14 +59,18 @@ mapMinX(mapMinX), mapMaxX(mapMaxX), mapMinY(mapMinY), mapMaxY(mapMaxY), mapMinZ(
 OccupancyGridMap::~OccupancyGridMap() {}
 
 
-void OccupancyGridMap::getGridIndex(float x, float y, float z, int &xIndex, int &yIndex, int &zIndex) {
-  xIndex = floor((x - originX) / gridSize);
-  yIndex = floor((y - originY) / gridSize);
-  zIndex = floor((z - originZ) / gridSize);
+bool OccupancyGridMap::getGridIndex(float x, float y, float z, int &xIndex, int &yIndex, int &zIndex) {
+    xIndex = static_cast<int>(std::floor((x - originX) / gridSize));
+    yIndex = static_cast<int>(std::floor((y - originY) / gridSize));
+    zIndex = static_cast<int>(std::floor((z - originZ) / gridSize));
 
-  xIndex = std::max(xIndexMin, std::min(xIndex, xIndexMax));
-  yIndex = std::max(yIndexMin, std::min(yIndex, yIndexMax));
-  zIndex = std::max(zIndexMin, std::min(zIndex, zIndexMax));
+    if (xIndex < xIndexMin || xIndex > xIndexMax ||
+        yIndex < yIndexMin || yIndex > yIndexMax ||
+        zIndex < zIndexMin || zIndex > zIndexMax) {
+        return false;
+    }
+
+    return true;
 }
 
 float OccupancyGridMap::getInitialTD(float start, float direction) {
@@ -73,143 +89,211 @@ float OccupancyGridMap::getInitialTD(float start, float direction) {
   }
 }
 
-bool OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, float xDes, float yDes, float zDes, std::vector<std::tuple<int, int, int>> &grids) {
-  bool exceedMapRegion = 
-    xDes < mapMinX || xDes > mapMaxX || yDes < mapMinY || yDes > mapMaxY || zDes < mapMinZ || zDes > mapMaxZ;
+// bool OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart, float xDes, float yDes, float zDes, std::vector<std::tuple<int, int, int>> &grids) {
+//   bool exceedMapRegion = 
+//     xDes < mapMinX || xDes > mapMaxX || yDes < mapMinY || yDes > mapMaxY || zDes < mapMinZ || zDes > mapMaxZ;
 
-  float directionX, directionY, directionZ;
-  directionX = xDes - xStart;
-  directionY = yDes - yStart;
-  directionZ = zDes - zStart;
+//   float directionX, directionY, directionZ;
+//   directionX = xDes - xStart;
+//   directionY = yDes - yStart;
+//   directionZ = zDes - zStart;
 
-  int xStep, yStep, zStep;
-  xStep = directionX > 0 ? 1 : -1;
-  yStep = directionY > 0 ? 1 : -1;
-  zStep = directionZ > 0 ? 1 : -1;
+//   int xStep, yStep, zStep;
+//   xStep = directionX > 0 ? 1 : -1;
+//   yStep = directionY > 0 ? 1 : -1;
+//   zStep = directionZ > 0 ? 1 : -1;
 
-  // delta can be inf
-  float xDelta, yDelta, zDelta;
-  xDelta = gridSize / fabs(directionX);
-  yDelta = gridSize / fabs(directionY);
-  zDelta = gridSize / fabs(directionZ);
+//   // delta can be inf
+//   float xDelta, yDelta, zDelta;
+//   xDelta = gridSize / fabs(directionX);
+//   yDelta = gridSize / fabs(directionY);
+//   zDelta = gridSize / fabs(directionZ);
 
-  int x, y, z, xEnd, yEnd, zEnd;
-  getGridIndex(xStart, yStart, zStart, x, y, z);
-  getGridIndex(xDes, yDes, zDes, xEnd, yEnd, zEnd);
+//   int x, y, z, xEnd, yEnd, zEnd;
+//   getGridIndex(xStart, yStart, zStart, x, y, z);
+//   getGridIndex(xDes, yDes, zDes, xEnd, yEnd, zEnd);
 
-  // initialize the travel distance
-  float xTD, yTD, zTD;
-  xTD = getInitialTD(xStart, directionX);
-  yTD = getInitialTD(yStart, directionY);
-  zTD = getInitialTD(zStart, directionZ);
+//   // initialize the travel distance
+//   float xTD, yTD, zTD;
+//   xTD = getInitialTD(xStart, directionX);
+//   yTD = getInitialTD(yStart, directionY);
+//   zTD = getInitialTD(zStart, directionZ);
 
-  if (xDelta == std::numeric_limits<float>::infinity()) {
-    xTD = std::numeric_limits<float>::infinity();
-  }
-  if (yDelta == std::numeric_limits<float>::infinity()) {
-    yTD = std::numeric_limits<float>::infinity();
-  }
-  if (zDelta == std::numeric_limits<float>::infinity()) {
-    zTD = std::numeric_limits<float>::infinity();
-  }
+//   if (xDelta == std::numeric_limits<float>::infinity()) {
+//     xTD = std::numeric_limits<float>::infinity();
+//   }
+//   if (yDelta == std::numeric_limits<float>::infinity()) {
+//     yTD = std::numeric_limits<float>::infinity();
+//   }
+//   if (zDelta == std::numeric_limits<float>::infinity()) {
+//     zTD = std::numeric_limits<float>::infinity();
+//   }
 
-  // TODO: check when xstart or xend are outside of the map scope, this grid travel may not work.
-  grids.push_back(std::make_tuple(x, y, z));
-  while (x != xEnd || y != yEnd || z != zEnd) {
-    // only compare the dimension which has not travelled the whole distance
-    if ((xTD < yTD && xTD < zTD) && x != xEnd || (y == yEnd && z == zEnd)) {
-      // xTD is the smallest
-      xTD += xDelta;
-      x += xStep;
-    } else if (yTD < zTD && y != yEnd || z == zEnd ) {
-      // yTD is the smallest
-      yTD += yDelta;
-      y += yStep;
-    } else if (z != zEnd) {
-      // zTD is the smallest
-      zTD += zDelta;
-      z += zStep;
-    }
+//   // TODO: check when xstart or xend are outside of the map scope, this grid travel may not work.
+//   grids.push_back(std::make_tuple(x, y, z));
+//   while (x != xEnd || y != yEnd || z != zEnd) {
+//     // only compare the dimension which has not travelled the whole distance
+//     if ((xTD < yTD && xTD < zTD) && x != xEnd || (y == yEnd && z == zEnd)) {
+//       // xTD is the smallest
+//       xTD += xDelta;
+//       x += xStep;
+//     } else if (yTD < zTD && y != yEnd || z == zEnd ) {
+//       // yTD is the smallest
+//       yTD += yDelta;
+//       y += yStep;
+//     } else if (z != zEnd) {
+//       // zTD is the smallest
+//       zTD += zDelta;
+//       z += zStep;
+//     }
+
+//     grids.push_back(std::make_tuple(x, y, z));
+//   }
+//   return exceedMapRegion;
+// }
+
+bool OccupancyGridMap::gridTravel(float xStart, float yStart, float zStart,
+                                  float xDes, float yDes, float zDes,
+                                  std::vector<std::tuple<int, int, int>> &grids) {
+    bool exceedMapRegion =
+        xDes < mapMinX || xDes > mapMaxX || yDes < mapMinY || yDes > mapMaxY || zDes < mapMinZ || zDes > mapMaxZ;
+
+    float directionX = xDes - xStart;
+    float directionY = yDes - yStart;
+    float directionZ = zDes - zStart;
+
+    int xStep = directionX > 0 ? 1 : -1;
+    int yStep = directionY > 0 ? 1 : -1;
+    int zStep = directionZ > 0 ? 1 : -1;
+
+    float xDelta = directionX != 0 ? gridSize / fabs(directionX) : std::numeric_limits<float>::infinity();
+    float yDelta = directionY != 0 ? gridSize / fabs(directionY) : std::numeric_limits<float>::infinity();
+    float zDelta = directionZ != 0 ? gridSize / fabs(directionZ) : std::numeric_limits<float>::infinity();
+
+    int x, y, z, xEnd, yEnd, zEnd;
+    getGridIndex(xStart, yStart, zStart, x, y, z);
+    getGridIndex(xDes, yDes, zDes, xEnd, yEnd, zEnd);
+
+    float xTD = getInitialTD(xStart, directionX);
+    float yTD = getInitialTD(yStart, directionY);
+    float zTD = getInitialTD(zStart, directionZ);
+
+    if (std::isinf(xDelta)) xTD = std::numeric_limits<float>::infinity();
+    if (std::isinf(yDelta)) yTD = std::numeric_limits<float>::infinity();
+    if (std::isinf(zDelta)) zTD = std::numeric_limits<float>::infinity();
 
     grids.push_back(std::make_tuple(x, y, z));
-  }
-  return exceedMapRegion;
+
+    while ((x != xEnd || y != yEnd || z != zEnd)) {
+        if ((xTD < yTD && xTD < zTD && x != xEnd) || (y == yEnd && z == zEnd)) {
+            xTD += xDelta;
+            x += xStep;
+        } else if ((yTD < zTD && y != yEnd) || z == zEnd) {
+            yTD += yDelta;
+            y += yStep;
+        } else if (z != zEnd) {
+            zTD += zDelta;
+            z += zStep;
+        }
+
+        if (x < xIndexMin || x > xIndexMax || y < yIndexMin || y > yIndexMax || z < zIndexMin || z > zIndexMax) {
+            break;
+        }
+
+        grids.push_back(std::make_tuple(x, y, z));
+    }
+
+    return exceedMapRegion;
 }
 
 void OccupancyGridMap::updateMap(float xPos, float yPos, float zPos, std::vector<std::tuple<float, float, float>> points) {
-  std::vector<std::tuple<int, int, int>> grids;
-  float x, y, z;
-  int gridX, gridY, gridZ;
-  Grid *grid;
+    std::vector<std::tuple<int, int, int>> grids;
+    float x, y, z;
+    int gridX, gridY, gridZ;
+    Grid* grid;
 
-  for (auto &point : points) {
-    std::tie(x, y, z) = point;
+    for (const auto& point : points) {
+        std::tie(x, y, z) = point;
+        if (x < mapMinX || x > mapMaxX ||
+            y < mapMinY || y > mapMaxY ||
+            z < mapMinZ || z > mapMaxZ) {
+            continue;
+        }
 
-    bool exceedMapRegion = gridTravel(xPos, yPos, zPos, x, y, z, grids);
-    
-    for (size_t i = 0; i < grids.size() - 1; i++) {
-      std::tie(gridX, gridY, gridZ) = grids[i];
-      grid = getGridByIndex(gridX, gridY, gridZ);
-      grid->miss();
-      if (grid->state == GridState::UNKNOWN && grid->isFree()) {
-        freeGridNum += 1;
-        unknownGridNum -= 1;
-        grid->state = GridState::FREE;
-      } else if (grid->state == GridState::OCCUPIED && grid->isFree()) {
-        freeGridNum += 1;
-        occupiedGridNum -= 1;
-        grid->state = GridState::FREE;
-      }
+        bool exceedMapRegion = gridTravel(xPos, yPos, zPos, x, y, z, grids);
+        for (size_t i = 0; i < grids.size() - 1; i++) {
+            std::tie(gridX, gridY, gridZ) = grids[i];
+
+            if (gridX < xIndexMin || gridX > xIndexMax ||
+                gridY < yIndexMin || gridY > yIndexMax ||
+                gridZ < zIndexMin || gridZ > zIndexMax) {
+                continue;
+            }
+
+            grid = getGridByIndex(gridX, gridY, gridZ);
+            grid->miss();
+            if (grid->state == GridState::UNKNOWN && grid->isFree()) {
+                freeGridNum += 1;
+                unknownGridNum -= 1;
+                grid->state = GridState::FREE;
+            } else if (grid->state == GridState::OCCUPIED && grid->isFree()) {
+                freeGridNum += 1;
+                occupiedGridNum -= 1;
+                grid->state = GridState::FREE;
+            }
+        }
+        if (!grids.empty()) {
+            if (getGridIndex(x, y, z, gridX, gridY, gridZ)) {
+                grid = getGridByIndex(gridX, gridY, gridZ);
+
+                grid->hit();
+                grid->addPoint(Eigen::Vector3f(x, y, z));
+                if (grid->state == GridState::UNKNOWN && grid->isOccupied()) {
+                    occupiedGridNum += 1;
+                    unknownGridNum -= 1;
+                    grid->state = GridState::OCCUPIED;
+                } else if (grid->state == GridState::FREE && grid->isOccupied()) {
+                    occupiedGridNum += 1;
+                    freeGridNum -= 1;
+                    grid->state = GridState::OCCUPIED;
+
+                    if (grid->isSurfaceEdge) {
+                        grid->surface_cluster->remove_surface_edge(gridX, gridY, gridZ);
+                        grid->surface_cluster = nullptr;
+                        grid->isSurfaceEdge = false;
+                    }
+                    grid->isSurfaceVoxel = false;
+                } else if (grid->state == GridState::OCCUPIED && grid->isFree()) {
+                    occupiedGridNum -= 1;
+                    freeGridNum += 1;
+                    grid->state = GridState::FREE;
+
+                    grid->isSurfaceVoxel = false;
+                    grid->isSurfaceEdge = false;
+                }
+                if (grid->isOccupied() && grids.size() > 1) {
+                    std::tie(gridX, gridY, gridZ) = grids[grids.size() - 2];
+                    if (gridX >= xIndexMin && gridX <= xIndexMax &&
+                        gridY >= yIndexMin && gridY <= yIndexMax &&
+                        gridZ >= zIndexMin && gridZ <= zIndexMax) {
+                        grid = getGridByIndex(gridX, gridY, gridZ);
+                        if (grid->isFree()) {
+                            surfaceOperator.grid_operator(grid, gridX, gridY, gridZ, this);
+                        }
+                    }
+                }
+            }
+        }
+
+        grids.clear();
     }
-    std::tie(gridX, gridY, gridZ) = grids[grids.size() - 1];
-    grid = getGridByIndex(gridX, gridY, gridZ);
-    if (!exceedMapRegion) {
-      grid->hit();
-    } else {
-      grid->miss(); 
+
+    for (Grid& grid : mapGrids) {
+        if (grid.isOccupied()) {
+            grid.computeNormals(slidingWindowSize);
+            grid.buildOctree(gridSize, originX, originY, originZ);
+        }
     }
-
-    // post process
-    if (grid->state == GridState::UNKNOWN && grid->isOccupied()) {
-      occupiedGridNum += 1;
-      unknownGridNum -= 1;
-      grid->state = GridState::OCCUPIED;
-    } else if (grid->state == GridState::FREE && grid->isOccupied()) {
-      occupiedGridNum += 1;
-      freeGridNum -= 1;
-      grid->state = GridState::OCCUPIED;
-
-      // if (grid->isSurfaceVoxel) {
-        // TODO: surface won't change back to non surface
-      // }
-      if (grid->isSurfaceEdge) { // surface edge can be changed to the non-free voxel
-        grid->surface_cluster->remove_surface_edge(gridX, gridY, gridZ);
-        grid->surface_cluster = nullptr;
-        grid->isSurfaceEdge = false;
-      }
-      grid->isSurfaceVoxel = false;
-    } else if (grid->state == GridState::OCCUPIED && grid->isFree()) {
-      occupiedGridNum -= 1;
-      freeGridNum += 1;
-      grid->state = GridState::FREE;
-
-      grid->isSurfaceVoxel = false;
-      grid->isSurfaceEdge = false;
-
-      // TODO: change back to FREE, for now, do nothing
-    }
-
-    // check the last free grid 
-    if (grid->isOccupied()) {
-      std::tie(gridX, gridY, gridZ) = grids[grids.size() - 2];
-      grid = getGridByIndex(gridX, gridY, gridZ);
-      if (grid->isFree()) {
-        surfaceOperator.grid_operator(grid, gridX, gridY, gridZ, this);
-      }
-    }
-
-    grids.clear();
-  }
 }
 
 Grid* OccupancyGridMap::getGridByIndex(int x, int y, int z) {
@@ -480,3 +564,44 @@ void OccupancyGridMap::outputAsPointCloud(std::string filepath) {
   std::cout << "All finished." << std::endl;
 }
 
+void OccupancyGridMap::outputDownsampledPointCloud(const std::string& filepath) {
+    std::ofstream outFile(filepath + "/out_downsample.ply");
+    if (!outFile) {
+        std::cerr << "Cannot open the output file!" << std::endl;
+        return;
+    }
+
+    uint32_t point_num = 0;
+    for (auto& grid : mapGrids) {
+        if (grid.isOccupied() && grid.octree != nullptr) {
+            point_num += grid.octree->countLeafNodes();
+        }
+    }
+
+    outFile << "ply\n";
+    outFile << "format ascii 1.0\n";
+    outFile << "element vertex " << point_num << "\n";
+    outFile << "property float x\n";
+    outFile << "property float y\n";
+    outFile << "property float z\n";
+    outFile << "property float nx\n";
+    outFile << "property float ny\n";
+    outFile << "property float nz\n";
+    outFile << "end_header\n";
+
+    for (auto& grid : mapGrids) {
+        if (grid.isOccupied() && grid.octree != nullptr) {
+            std::vector<Eigen::Vector3f> leaf_points;
+            std::vector<Eigen::Vector3f> leaf_normals;
+            grid.octree->collectLeafNodes(leaf_points, leaf_normals);
+            for (size_t i = 0; i < leaf_points.size(); ++i) {
+                const Eigen::Vector3f& point = leaf_points[i];
+                const Eigen::Vector3f& normal = leaf_normals[i];
+                outFile << point.x() << " " << point.y() << " " << point.z() << " "
+                        << normal.x() << " " << normal.y() << " " << normal.z() << "\n";
+            }
+        }
+    }
+
+    outFile.close();
+}

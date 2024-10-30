@@ -27,6 +27,7 @@ public:
 
   // store the grid in order: x, y, z
   int xIndexMin, xIndexMax, yIndexMin, yIndexMax, zIndexMin, zIndexMax;
+  int slidingWindowSize = 20;
   unsigned int xMapLength, yMapLength, zMapLength; 
   std::vector<Grid> mapGrids;
 
@@ -43,7 +44,7 @@ public:
 
   SurfaceOperator surfaceOperator;
 
-  void getGridIndex(float x, float y, float z, int &xIndex, int &yIndex, int &zIndex);
+  bool getGridIndex(float x, float y, float z, int &xIndex, int &yIndex, int &zIndex);
 
   void getGridIndex(unsigned int gridVectorIndex, int &x, int &y, int &z);
 
@@ -65,6 +66,8 @@ public:
   Grid* getNeightbourGrid(int x, int y, int z, int nbX, int nbY, int nbZ);
 
   void outputAsPointCloud(std::string filepath);
+
+  void outputDownsampledPointCloud(const std::string& filepath);
 };
 
 #endif /* OGM_HPP */
